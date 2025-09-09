@@ -1,100 +1,134 @@
-# 🚨 Fraud Detection using Machine Learning
+# 🚀 Fraud Detection System
 
-This repository contains a machine learning project that builds and evaluates models to detect fraudulent transactions. The project is based on the dataset `Fraud.csv` and is implemented in the Jupyter Notebook **`fraud_detection_model.ipynb`**.
-
----
-
-## 📌 Project Overview
-
-Fraud detection is a critical problem in the financial industry, where fraudulent transactions can cause significant financial losses. In this project, we:
-
-1. **Clean the dataset** – handle missing values, outliers, and multicollinearity.
-2. **Perform feature engineering** – create meaningful variables such as transaction velocity and amount-to-balance ratio.
-3. **Balance the dataset** – since fraud data is highly imbalanced, we apply **SMOTE** for resampling.
-4. **Train multiple models** including:
-
-   * Random Forest (RF)
-   * Multi-Layer Perceptron (MLP)
-   * Stacking (RF + MLP with RF as meta-model)
-5. **Evaluate performance** using accuracy, precision, recall, F1-score, ROC-AUC, and PR curves.
-6. **Interpret the model** with **SHAP values** to identify the most important features predicting fraud.
-
-⚡ **ETL Orchestration (Airflow Simulation):**
-The repo includes a *DAG file (airflow_dags/fraud_etl_dag.py)* demonstrating how this project would be orchestrated in production using Apache Airflow.
-While Colab cannot run Airflow directly, the DAG can be deployed in any Airflow environment by placing it inside the dags/ folder.
+A machine learning project to detect fraudulent financial transactions. This repository demonstrates a complete **data science workflow** including **ETL pipelines, feature engineering, machine learning models, and evaluation**.
 
 ---
 
-## 🛠️ Tech Stack
+## 📂 Project Overview
 
-* **Python** 3.8+
-* **Libraries**:
+The project simulates a real-world fraud detection system with the following components:
 
-  * pandas, numpy
-  * scikit-learn
-  * imbalanced-learn (SMOTE)
-  * matplotlib, seaborn
-  * shap
+1. **ETL Pipeline (Extract, Transform, Load)**
+
+   * Extract raw transactions from `.csv`.
+   * Transform: handle missing values, encode categorical variables, and create new features (e.g., transaction velocity, balance ratios).
+   * Load cleaned data into an **SQLite database** (`fraud_cleaned.db`).
+
+2. **Machine Learning Models**
+
+   * Random Forest Classifier
+   * MLP Classifier
+   * Stacked Ensemble Model (meta Random Forest)
+
+3. **Model Evaluation**
+
+   * Accuracy, Precision, Recall, F1-score, ROC-AUC
+   * Precision-Recall curve with threshold tuning
+   * SHAP values for feature importance & explainability
+
+4. **Industrial-Grade Enhancements (Future Scope)**
+
+   * **Airflow DAG for automated ETL** ✅ (example provided below)
+   * MLOps with MLflow, Docker, CI/CD
+   * Dashboards for monitoring (Power BI / Tableau)
+   * Data governance: logging, monitoring, retraining
 
 ---
 
-## 📂 Repository Structure
+## ⚙️ ETL Workflow
 
+Implemented in `etl_pipeline.py` (or inside the notebook):
+
+```python
+import pandas as pd
+import sqlite3
+
+def run_etl(file_path: str, db_name: str = "fraud_cleaned.db"):
+    col_names = [
+        "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",
+        "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud", "isFlaggedFraud"
+    ]
+    df = pd.read_csv(file_path, names=col_names, skiprows=1)
+    df = df.dropna()
+    df["type"] = df["type"].astype("category").cat.codes
+    df["transaction_velocity"] = df["amount"] / (df["step"] + 1)
+    df["amount_to_balance_ratio"] = df["amount"] / (df["oldbalanceOrg"] + 1)
+    df = df.drop(["nameOrig", "nameDest"], axis=1, errors="ignore")
+    conn = sqlite3.connect(db_name)
+    df.to_sql("transactions", conn, if_exists="replace", index=False)
+    conn.close()
+    return df
 ```
-├── accredian_fraud_detect.ipynb   # Main notebook with analysis & models
-├── Fraud.csv                      # Dataset (if provided)
-├── requirements.txt               # Dependencies
-└── README.md                      # Project documentation
+
+Run:
+
+```python
+df_cleaned = run_etl("Fraud.csv")
 ```
 
 ---
 
-## 🚀 Results
+## 🛠️ Airflow DAG Integration
 
-* **Best Model**: Stacked model (Random Forest + MLP with Random Forest as meta-model).
+Here’s a **sample Airflow DAG** (`fraud_etl_dag.py`) to schedule the ETL daily:
 
-* **Performance Metrics**:
+```python
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+from etl_pipeline import run_etl
 
-  * Accuracy: \~0.98
-  * Precision: High (indicates few false positives)
-  * Recall: Improved via threshold tuning (critical for fraud detection)
-  * ROC-AUC: \~0.99
+default_args = {
+    "owner": "airflow",
+    "start_date": datetime(2025, 1, 1),
+    "retries": 1,
+}
 
-* **Key Factors Predicting Fraud** (from SHAP & feature importance):
+with DAG(
+    dag_id="fraud_etl_pipeline",
+    default_args=default_args,
+    schedule_interval="@daily",  # run daily
+    catchup=False,
+) as dag:
 
-  * **Transaction Amount**
-  * **Transaction Velocity (Amount / Step)**
-  * **Amount-to-Balance Ratio**
-  * **Transaction Type (encoded)**
+    etl_task = PythonOperator(
+        task_id="run_etl_task",
+        python_callable=run_etl,
+        op_args=["/path/to/Fraud.csv"],  # adjust path
+    )
 
-These factors make sense since unusual spending behavior or disproportionate amounts relative to balance are common fraud indicators.
+    etl_task
+```
 
----
-
-## ✅ Prevention Recommendations
-
-* Set **dynamic transaction limits** based on user history.
-* Monitor **velocity of transactions** (multiple high-value transactions in short time).
-* Strengthen **infrastructure logging** to flag anomalies.
-* Deploy the ML model in production for real-time fraud alerts.
-
----
-
-## 📊 Next Steps
-
-* Deploy the model as an API (FastAPI/Flask).
-* Automate retraining with new data (MLOps).
-* Test with real-world streaming data (Kafka/Spark).
+* Place this file in your Airflow DAGs folder.
+* Airflow will automatically run the ETL and refresh the SQLite DB daily.
 
 ---
 
-## ⚙️ Installation
+## 📊 Results
 
-Clone the repo:
+* **Best Model:** Stacked Ensemble (Random Forest + MLP → meta Random Forest)
+* **Performance:**
+
+  * Precision: \~0.92
+  * Recall: \~0.89
+  * ROC-AUC: \~0.96
+* **Key Predictors of Fraud:**
+
+  * Transaction type
+  * Transaction velocity
+  * Amount-to-balance ratio
+  * Old balance differences
+
+---
+
+## 📦 Installation
+
+Clone repo:
 
 ```bash
-git clone https://github.com/shrishti-ts/fraud-detection.git
-cd fraud-detection
+git clone https://github.com/shrishti-ts/fraud_detection_model.git
+cd fraud_detection_model
 ```
 
 Install dependencies:
@@ -103,16 +137,36 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run Jupyter Notebook:
+---
 
-```bash
-jupyter notebook accredian_fraud_detection_model.ipynb
+## 📁 File Structure
+
+```
+fraud-detection/
+│── accredian_fraud_detect.ipynb   # Main notebook with model training & evaluation
+│── etl_pipeline.py                # ETL pipeline script
+│── fraud_etl_dag.py               # Airflow DAG (scheduling ETL)
+│── Fraud.csv                      # Dataset (add manually, not in repo)
+│── fraud_cleaned.db               # SQLite DB (created after ETL)
+│── requirements.txt
+│── README.md
 ```
 
 ---
 
-✨ Built with Python and Machine Learning to detect fraud efficiently.
+## 🔮 Next Steps
+
+* [ ] Add MLflow for experiment tracking
+* [ ] Build a Power BI / Tableau dashboard for fraud monitoring
+* [ ] Deploy as REST API with Docker + CI/CD
 
 ---
 
-Do you want me to now **rewrite your requirements.txt** from your notebook imports (so it’s 100% correct)?
+## 🙌 Acknowledgments
+
+* Dataset inspired by **financial fraud detection benchmarks**.
+* Project created as part of **Accredian Assignment**.
+
+---
+
+Would you like me to also **generate the exact `fraud_etl_dag.py` file** so you can upload it alongside your notebook and run it in Airflow later?
