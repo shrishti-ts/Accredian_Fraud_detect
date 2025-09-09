@@ -1,19 +1,25 @@
-import pandas as pd
-import sqlite3
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+from etl_pipeline import run_etl
 
-# Simulate Extract
-df = pd.read_csv("Fraud.csv")  # adjust path
+default_args = {
+    "owner": "airflow",
+    "start_date": datetime(2025, 1, 1),
+    "retries": 1,
+}
 
-# Simulate Transform
-df = df.dropna()
-df['type'] = df['type'].astype('category').cat.codes
-df['transaction_velocity'] = df['amount'] / (df['step'] + 1)
-df['amount_to_balance_ratio'] = df['amount'] / (df['oldbalanceOrg'] + 1)
-df = df.drop(['nameOrig', 'nameDest'], axis=1)
+with DAG(
+    dag_id="fraud_etl_pipeline",
+    default_args=default_args,
+    schedule_interval="@daily",  # run daily
+    catchup=False,
+) as dag:
 
-# Simulate Load
-conn = sqlite3.connect("fraud_cleaned.db")
-df.to_sql("transactions", conn, if_exists="replace", index=False)
-conn.close()
+    etl_task = PythonOperator(
+        task_id="run_etl_task",
+        python_callable=run_etl,
+        op_args=["/path/to/Fraud.csv"],  # adjust path
+    )
 
-print("✅ ETL simulation complete — stored in fraud_cleaned.db")
+    etl_task
