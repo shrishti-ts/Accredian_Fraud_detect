@@ -168,5 +168,3 @@ fraud-detection/
 * Project created as part of **Accredian Assignment**.
 
 ---
-
-Would you like me to also **generate the exact `fraud_etl_dag.py` file** so you can upload it alongside your notebook and run it in Airflow later?
