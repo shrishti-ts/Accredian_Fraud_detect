@@ -1,6 +1,6 @@
 # 🚨 Fraud Detection using Machine Learning
 
-This repository contains a machine learning project that builds and evaluates models to detect fraudulent transactions. The project is based on the dataset `Fraud.csv` and is implemented in the Jupyter Notebook **`accredian_fraud_detect.ipynb`**.
+This repository contains a machine learning project that builds and evaluates models to detect fraudulent transactions. The project is based on the dataset `Fraud.csv` and is implemented in the Jupyter Notebook **`fraud_detection_model.ipynb`**.
 
 ---
 
