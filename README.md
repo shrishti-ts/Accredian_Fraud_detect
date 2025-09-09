@@ -20,7 +20,7 @@ Fraud detection is a critical problem in the financial industry, where fraudulen
 6. **Interpret the model** with **SHAP values** to identify the most important features predicting fraud.
 
 ⚡ **ETL Orchestration (Airflow Simulation):**
-The repo includes a **DAG file (airflow_dags/fraud_etl_dag.py)* demonstrating how this project would be orchestrated in production using Apache Airflow.
+The repo includes a *DAG file (airflow_dags/fraud_etl_dag.py)* demonstrating how this project would be orchestrated in production using Apache Airflow.
 While Colab cannot run Airflow directly, the DAG can be deployed in any Airflow environment by placing it inside the dags/ folder.
 
 ---
